@@ -18,18 +18,24 @@ namespace Solution {
         private double targetWeight = 0.0;
         private ListBox listBoxCodes = new ListBox();
         private static int maxWeight = 0;
-
+        private bool isAutoCheckRunning = false;
         public Form1() { 
             InitializeComponent();
             InitializeListBox();
         }
 
         private void InitializeListBox(){
-            listBoxCodes.Location = new System.Drawing.Point(220, 220);
+            listBoxCodes.Location = new System.Drawing.Point(220, 240);
             listBoxCodes.Size = new System.Drawing.Size(300, 100);
             Controls.Add(listBoxCodes);
         }
 
+        private void SetControlsEnabled(bool enabled)
+        {
+            textBox1.Enabled = enabled;
+            textBox2.Enabled = enabled;
+ 
+        }
 
         public static string GenerateRandomCode() {
             StringBuilder sb = new StringBuilder();
@@ -41,11 +47,11 @@ namespace Solution {
             return sb.ToString();
         }
 
-        private void button1_Click(object sender, EventArgs e) {
+        private  void button1_Click(object sender, EventArgs e) {
             if (double.TryParse(textBox1.Text, out targetWeight)){
                 int.TryParse(textBox2.Text, out maxWeight);
                 currentWeight = 0.0;
-
+                SetControlsEnabled(false);
                 for (int i = 0; i < 1; i++){
                     string randomCode = GenerateRandomCode();
                     listBoxCodes.Items.Add(randomCode);
@@ -57,7 +63,8 @@ namespace Solution {
                 ProcessProductCodes(codes);
             }
         }
-        private void ProcessProductCodes(List<string> productCodes) {
+        private async Task ProcessProductCodes(List<string> productCodes) {
+            currentWeight = 0.0;
             foreach (string code in productCodes) {
                 if (code.StartsWith("(01)") && code.Length >= 15) {
                     int startIndex = code.IndexOf("(3103)") + 6;
@@ -73,15 +80,18 @@ namespace Solution {
             label4.Text = remainingWeight.ToString();
 
             if (currentWeight >= targetWeight){
-                MessageBox.Show("Достигнут заданный вес продукта! Сброс!", 
+                MessageBox.Show("Достигнут заданный вес продукта!", 
                     "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                ResetValues();
+                isAutoCheckRunning = false;
+                button4.Text = "Запустить авто-проверку";
                 return;
             }
 
             if (remainingWeight - maxWeight <= 0) {
                 MessageBox.Show("Возможно переполнение, так как максимальный вес продукта (" + maxWeight + ") " +
                     "больше или равен оставшемуся весу (" + remainingWeight + ").");
+                isAutoCheckRunning = false;
+                button4.Text = "Запустить авто-проверку";
             }
         }
 
@@ -94,6 +104,56 @@ namespace Solution {
             listBoxCodes.Items.Clear();
             label4.Text = "0";
         }
+
+        private void button2_Click(object sender, EventArgs e) {
+            SetControlsEnabled(true);
+            ResetValues();
+        }
+
+
+
+
+        private void button4_Click(object sender, EventArgs e) {
+            SetControlsEnabled(false);
+            if (isAutoCheckRunning)
+            {
+              
+                isAutoCheckRunning = false;
+                button4.Text = "Запустить авто-проверку"; 
+            }
+            else
+            {
+           
+                isAutoCheckRunning = true;
+                button4.Text = "Остановить авто-проверку"; 
+                RunAutoCheck();
+            }
+        }
+
+        private async void RunAutoCheck()
+        {
+            currentWeight = 0.0;
+    
+            if (double.TryParse(textBox1.Text, out targetWeight))
+            {
+                int.TryParse(textBox2.Text, out maxWeight);
+
+                while (isAutoCheckRunning && currentWeight < targetWeight)
+                {
+                    string randomCode = GenerateRandomCode();
+                    listBoxCodes.Items.Add(randomCode);
+                    codes.Add(randomCode);
+
+                    remainingWeight = targetWeight - currentWeight;
+                    label4.Text = remainingWeight.ToString();
+
+                    await Task.Delay(1000);
+
+                    await ProcessProductCodes(codes);
+                }
+            }
+        }
+
     }
 }
 
